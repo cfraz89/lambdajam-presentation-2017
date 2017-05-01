@@ -2,6 +2,12 @@
     <head>
         <link rel="stylesheet" href="css/reveal.css">
         <link rel="stylesheet" href="css/theme/black.css" id="theme">
+        <link rel="stylesheet" href="lib/css/zenburn.css">
+<style>
+    .reveal pre code {
+        max-height: none
+    }
+</style>
     </head>
     <body>
         <div class="reveal">
@@ -10,12 +16,96 @@
                     <h1>Observing Everything</h1>
                     <h2>Completely Reactive Apps in the Real World with RxSwift</h2>
                 </section>
-                <section>Slide 2</section>
+                <section>
+                    <h3>Zova - a fitness app</h3>
+                </section>
+                <section>
+                    <h3>Initially objective-c</h3>
+                    <p>Heavily object orientated design</p>
+                </section>
+                <section>
+                    <img src="images/state_everywhere.jpg" />
+                </section>
+                <section>
+                    <pre><code class="hljs objectivec" data-trim>
+@property NSMutableArray *sections;
+
+- (instancetype)init
+{
+    self = [super init];
+    _sections = [NSMutableArray new];
+    
+    for(int i = 0; i < 7; i++)
+    {
+      ZVCollectionViewNullSection *nullSection = [ZVCollectionViewNullSection new];
+      [_sections addObject:nullSection];
+    }
+}
+                    </code></pre>
+                </section>
+                <section>
+                    <h2>Message passing and asynchrony solutions:</h2>
+                </section>
+                <section>
+                    <h2>All of them</h2>
+                </section>
+                <section>
+                    <ul>
+                        <li>NSNotificationCenter</li>
+                        <li>Delegates</li>
+                        <li>Objective C blocks</li>
+                    </ul>
+                </section>
+                <section>
+                    <pre><code class="hljs objectivec" data-trim>
+self.timeObserver = [avPlayer addPeriodicTimeObserverForInterval:CMTimeMake(1, 10) 
+    queue:NULL usingBlock:^(CMTime time)
+        {
+            NSTimeInterval timeInSeconds = CMTimeGetSeconds(time);
+            
+            if(timeInSeconds > 0 && [weakSelf.delegate
+                respondsToSelector:@selector(videoPlayer:didPlayFrame:time:lastTime:)])
+            {
+                NSTimeInterval currentItemDuration = [weakSelf.player currentItemDuration];
+                
+                if(!isnan(currentItemDuration))
+                {
+                    [[NSNotificationCenter defaultCenter]
+                        postNotificationName: kVKVideoPlayerDurationDidLoadNotification
+                        object:weakSelf
+                        userInfo:@{@"duration":[NSNumber numberWithDouble:currentItemDuration]}];
+                    
+                    [weakSelf.delegate videoPlayer:weakSelf
+                        didPlayFrame:weakSelf.track time:timeInSeconds lastTime:0];
+                }
+            }
+        }];
+                    </code></pre>
+                </section>
             </div>
         </div>
+        <script src="lib/js/head.min.js"></script>
         <script src="js/reveal.js"></script>
         <script>
-            Reveal.initialize();
-        </script>
-    </body>
-</html>`
+            Reveal.initialize({
+                    controls: false,
+                    progress: true,
+                    history: true,
+                    center: true,
+                    transition: 'slide', // none/fade/slide/convex/concave/zoom
+                    width: "95%",
+                    height: "95%",
+                    margin: 0,
+                    // More info https://github.com/hakimel/reveal.js#dependencies
+                    dependencies: [
+                        { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+                        { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                        { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                        { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+                        { src: 'plugin/zoom-js/zoom.js', async: true },
+                        { src: 'plugin/notes/notes.js', async: true }
+                    ]
+            });
+    </script>
+</body>
+</html>
