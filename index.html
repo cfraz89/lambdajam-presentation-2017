@@ -18,10 +18,21 @@
                 </section>
                 <section>
                     <h3>Zova - a fitness app</h3>
+                    <aside class="notes">
+                        <p>What does this entail:</p>
+                        <ul>
+                            <li>At first: a video player for workouts</li>
+                            <li>Then, a companion watch application</li>
+                            <li>Then, a faux-pt</li>
+                            <li>Then, a scoring mechanism</lib>
+                        </ul>
+                    </aside>
+                    
                 </section>
                 <section>
                     <h3>Initially objective-c</h3>
-                    <p>Heavily object orientated design</p>
+                    <p>Standard iOS app - standard object orientated design</p>
+                    <aside class="notes">There was nothing wrong with the application, it folloed the typical mvc pattern laid out by apple. However this typically results in:</aside>
                 </section>
                 <section>
                     <img src="images/state_everywhere.jpg" />
@@ -44,16 +55,16 @@
                     </code></pre>
                 </section>
                 <section>
-                    <h2>Message passing and asynchrony solutions:</h2>
+                    <h2>Standard iOS message passing and asynchrony solution:</h2>
                 </section>
                 <section>
-                    <h2>All of them</h2>
+                    <h2>There is none</h2>
                 </section>
                 <section>
                     <ul>
                         <li>NSNotificationCenter</li>
                         <li>Delegates</li>
-                        <li>Objective C blocks</li>
+                        <li>Callback closures</li>
                     </ul>
                 </section>
                 <section>
@@ -81,6 +92,56 @@ self.timeObserver = [avPlayer addPeriodicTimeObserverForInterval:CMTimeMake(1, 1
             }
         }];
                     </code></pre>
+                       <aside>Here's an example from the code I found using all three mechanisms at once. Pretty full on.
+                           So with the rewrite to swift, came a good opportunity to make the app more functional. Now functional programming and mobile application development tend not to be two things you associate with each other. And for good reason, between the network requests, user input, animations, its pretty hard to keep your app adhering to functional paradigms outside of little snippets of maps and filters. So how can we reap the benefits of a more functional architecture?</aside>
+                </section>
+                <section>
+                       <h1>ReactiveX</h1>
+                       <img src="images/Rx_Logo_M.png" style="border: none; background: none;"/>
+                       <aside class="notes">ReactiveX, or rx for short, is a library started by microsoft, initially for .net, now implemented for many (18 on the website at this time), including swift
+                </section>
+                <section>
+                    <h1>An API for asynchronous programming with observable streams</h1>
+                    <aside class="notes">Straight from the horses mouth. The Rx API combines the observer pattern with functional operators to allow what is known as Functional Reactive Programming.
+                </section>
+                <section>
+                    <h2>The Observable</h2>
+                    <p>An asynchronous value stream</p>
+                    <img src="images/observable.png" />
+                    <aside class="notes">At the heart of Rx is the observable. An observable defines a stream of values, which will arrive asynchronously over time. 
+                        Observables are pure, computation of an observable does not have side effects.
+                    </aside>
+                </section>
+                <section>
+                    <p>A basic observable could be:</h2>
+                    <ul>
+                        <li>User tap events on a specific button</li>
+                        <li>A network request</li>
+                        <li>A database operation</li>
+                        <li>Scroll offset in a scroll view as a user swipes</li>
+                        <li>A timer</li>
+                        <li>Anything!</li>
+                    </ul>
+                    <aside class="notes">Any kind of sequence of events can be modelled as an observable. It is not limited to certain kinds of operations. A core aspect of Rx is the ability to easily define new observables, which we'll get into later</aside>
+                </section>
+                <section>
+                    <h2>Subscriptions</h2>
+                   <aside class="notes">
+                       As observables are pure, by themselves they're not incredibly useful to our users. They would just see white screens. Then probably rate the app 1 star. Not good.
+                       To do some work based on our observable, we need to subscribe to it. In fact an observable wont even be computed unless it is subscribed to.
+                        Subscribing to an observable is the process of attaching an observer, so that it recieves a notification of each new value emitted by the observable.
+                        This is where your side effects will live.
+                    </aside>
+                    <pre><code class="hljs swift">
+button.rx.tap //This is an observable
+    .subscribe(onNext: { present(viewController: myAlert) }) //this is a side effect 
+                    </code></pre> 
+                </section>
+                <section>
+                    <h2>Observable operators</h2>
+                    <img src="images/map.png" />
+                    <pre><code class="hljs swift">let newObservable = numberSource.map { $0 * 10 }</code></pre>
+                    <aside class="notes">The observer pattern itself is nothing new. However the secret sauce of Rx is the set of functional operators it provides. These operators allow you to transform and combine observables, providing the building blocks for a declarative codebase.
                 </section>
             </div>
         </div>
