@@ -92,7 +92,7 @@ self.timeObserver = [avPlayer addPeriodicTimeObserverForInterval:CMTimeMake(1, 1
             }
         }];
                     </code></pre>
-                       <aside>Here's an example from the code I found using all three mechanisms at once. Pretty full on.
+                       <aside class="notes">Here's an example from the code I found using all three mechanisms at once. Pretty full on.
                            So with the rewrite to swift, came a good opportunity to make the app more functional. Now functional programming and mobile application development tend not to be two things you associate with each other. And for good reason, between the network requests, user input, animations, its pretty hard to keep your app adhering to functional paradigms outside of little snippets of maps and filters. So how can we reap the benefits of a more functional architecture?</aside>
                 </section>
                 <section>
@@ -138,10 +138,61 @@ button.rx.tap //This is an observable
                     </code></pre> 
                 </section>
                 <section>
+                    <h2>Disposal</h2>
+                    <p>Manage the lifetime of your subscriptions</p>
+                    <aside class="notes">Now when you define a subscription, you have created a description of what to do when something happens. But for how long? Well, until it is disposed. When you create a subscription, you are provided with a disposable object. This object is essentially a handle on your subscription. Once you call dispose on this handle, your subscription is over, and all observables created by your subscription are disposed,  Observables can define code to execute when they are disposed, which is useful when they are long running eg. cancelling network requests. 
+                        RxSwift provides something called a disposeBag, which manages a collection of subscriptions. Once its refcount reaches zero and it is deinited, it will dispose every subscription it is storing.</aside>
+                    <pre><code class="hljs swift">
+let disposables = DisposeBag()
+
+//Subscription will exist until tapDisposable.dispose()
+let tapDisposable = button.rx.tap 
+    .subscribe(onNext: { present(viewController: myAlert) })
+
+
+tapDisposables.disposed(by: disposables) //disposables will call tapDisposable.dispose() on deinit
+                    </code></pre> 
+                </section>
+                <section>
+                    <h2>Using the DisposeBag</h2>
+                    <aside class="notes">The great thing about observable disposal is that it chains. When a subscription is disposed, all observables that have been created within its chain are disposed. When used in conjuction with the DisposeBag, this means that we don't have to worry about screens leaking resources once they are gone.</aside>
+                    <pre><code class="hljs swift">
+class ViewController: UIViewController {
+    let disposables = DisposeBag()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        let tapDisposable = button.rx.tap 
+            .subscribe(onNext: { present(viewController: myAlert) })
+            .disposed(by: disposables)
+    }
+                    </code></pre>
+                </section>
+                <section>
                     <h2>Observable operators</h2>
                     <img src="images/map.png" />
                     <pre><code class="hljs swift">let newObservable = numberSource.map { $0 * 10 }</code></pre>
-                    <aside class="notes">The observer pattern itself is nothing new. However the secret sauce of Rx is the set of functional operators it provides. These operators allow you to transform and combine observables, providing the building blocks for a declarative codebase.
+                    <aside class="notes">The observer pattern itself is nothing new. However Rx means Reactive extensions, and its at the x where things get interesting. Each Rx implementation ships with a variety of functional operators which can be applied to observables. These operators allow you to transform observables and combine them with each other in various ways, providing the building blocks for a functional and declarative codebase.</aside>
+                </section>
+                <section>
+                    <h2>A complete example</h2>
+                    <pre><code class="hljs swift">
+class ViewController: UIViewController {
+    let disposables = DisposeBag()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        loginButton.rx.tap
+            .withLatestFrom(
+                Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
+            )
+            .flatMapLatest { userAPI.login(user: $0, password: $1) }
+            .map { $0.isSuccess ? "Success!" : "Failure" }
+            .bindTo(resultField.rx.text)
+            .disposed(by: disposables)
+    }
+</code></pre>
                 </section>
             </div>
         </div>
