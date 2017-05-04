@@ -6,6 +6,12 @@
 <style>
     .reveal pre code {
         max-height: none
+    } 
+    .reveal .manualcode {
+        background-color: #3F3F3F
+    }
+    .reveal .highlight {
+        color: #4788FB
     }
 </style>
     </head>
@@ -175,7 +181,12 @@ class ViewController: UIViewController {
                     <aside class="notes">The observer pattern itself is nothing new. However Rx means Reactive extensions, and its at the x where things get interesting. Each Rx implementation ships with a variety of functional operators which can be applied to observables. These operators allow you to transform observables and combine them with each other in various ways, providing the building blocks for a functional and declarative codebase.</aside>
                 </section>
                 <section>
-                    <h2>A complete example</h2>
+                    <h2>In practice</h2>
+                    <aside class="notes">So now lets see how this works in practice. Lets say we were to build a login screen. A pretty standard affair, it gathers the user's username and password, ships them off to a backend API, and displays the result.</aside>
+                    <img src="images/coolpeopleclub.png" />
+                </section>
+                <section>
+                    <h2>Done!</h2>
                     <pre><code class="hljs swift">
 class ViewController: UIViewController {
     let disposables = DisposeBag()
@@ -193,6 +204,67 @@ class ViewController: UIViewController {
             .disposed(by: disposables)
     }
 </code></pre>
+                </section>
+
+                <section>
+                    <h2>Done!</h2>
+                    <pre class="manualcode">
+class ViewController: UIViewController {
+    let disposables = DisposeBag()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        loginButton.rx.tap
+            .withLatestFrom(
+                <span class="highlight">Observable.combineLatest(nameField.rx.text, passwordField.rx.text)</span>
+            )
+            .flatMapLatest { userAPI.login(user: $0, password: $1) }
+            .map { $0.isSuccess ? "Success!" : "Failure" }
+            .bindTo(resultField.rx.text)
+            .disposed(by: disposables)
+    }
+</pre>
+                </section>
+                <section>
+                    <h2>Done!</h2>
+                    <pre class="manualcode">
+class ViewController: UIViewController {
+    let disposables = DisposeBag()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        <span class="highlight">loginButton.rx.tap
+            .withLatestFrom(
+                </span>Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
+            <span class="highlight">)</span>
+            .flatMapLatest { userAPI.login(user: $0, password: $1) }
+            .map { $0.isSuccess ? "Success!" : "Failure" }
+            .bindTo(resultField.rx.text)
+            .disposed(by: disposables)
+    }
+</pre>
+                </section>
+                <section>
+                    <h2>Done!</h2>
+                    <pre class="manualcode">
+class ViewController: UIViewController {
+    let disposables = DisposeBag()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        loginButton.rx.tap
+            .withLatestFrom(
+                Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
+            )
+            <span class="highlight">.flatMapLatest { userAPI.login(user: $0, password: $1) }</span>
+            .map { $0.isSuccess ? "Success!" : "Failure" }
+            .bindTo(resultField.rx.text)
+            .disposed(by: disposables)
+    }
+</pre>
                 </section>
             </div>
         </div>
