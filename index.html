@@ -13,6 +13,19 @@
     .reveal .highlight {
         color: #4788FB
     }
+    .reveal h4 {
+        margin: 20px 0 0 30%;
+        color: #4788FB;
+        text-align: left;
+    }
+    .reveal .uncenter ul {
+        margin: 0 0 0 30%;
+            padding: 0 0 0 2em;
+        text-align: left;
+    } 
+    .uncenter {
+        text-align: left;
+    }
 </style>
     </head>
     <body>
@@ -67,36 +80,25 @@
                     <h2>There is none</h2>
                 </section>
                 <section>
-                    <ul>
-                        <li>NSNotificationCenter</li>
-                        <li>Delegates</li>
-                        <li>Callback closures</li>
-                    </ul>
+                    <h2>NSNotificationCenter</h2>
+                    <h2>Delegates</h2>
+                    <h2>Callback closures</h2>
                 </section>
                 <section>
                     <pre><code class="hljs objectivec" data-trim>
 self.timeObserver = [avPlayer addPeriodicTimeObserverForInterval:CMTimeMake(1, 10) 
-    queue:NULL usingBlock:^(CMTime time)
-        {
-            NSTimeInterval timeInSeconds = CMTimeGetSeconds(time);
+    queue:NULL usingBlock:^(CMTime time) {
+        NSTimeInterval timeInSeconds = CMTimeGetSeconds(time);
+        NSTimeInterval currentItemDuration = [weakSelf.player currentItemDuration];
             
-            if(timeInSeconds > 0 && [weakSelf.delegate
-                respondsToSelector:@selector(videoPlayer:didPlayFrame:time:lastTime:)])
-            {
-                NSTimeInterval currentItemDuration = [weakSelf.player currentItemDuration];
-                
-                if(!isnan(currentItemDuration))
-                {
-                    [[NSNotificationCenter defaultCenter]
-                        postNotificationName: kVKVideoPlayerDurationDidLoadNotification
-                        object:weakSelf
-                        userInfo:@{@"duration":[NSNumber numberWithDouble:currentItemDuration]}];
-                    
-                    [weakSelf.delegate videoPlayer:weakSelf
-                        didPlayFrame:weakSelf.track time:timeInSeconds lastTime:0];
-                }
-            }
-        }];
+        [[NSNotificationCenter defaultCenter]
+            postNotificationName: kVKVideoPlayerDurationDidLoadNotification
+            object:weakSelf
+            userInfo:@{@"duration":[NSNumber numberWithDouble:currentItemDuration]}];
+            
+        [weakSelf.delegate videoPlayer:weakSelf
+            didPlayFrame:weakSelf.track time:timeInSeconds lastTime:0];
+    }];
                     </code></pre>
                        <aside class="notes">Here's an example from the code I found using all three mechanisms at once. Pretty full on.
                            So with the rewrite to swift, came a good opportunity to make the app more functional. Now functional programming and mobile application development tend not to be two things you associate with each other. And for good reason, between the network requests, user input, animations, its pretty hard to keep your app adhering to functional paradigms outside of little snippets of maps and filters. So how can we reap the benefits of a more functional architecture?</aside>
@@ -114,8 +116,7 @@ self.timeObserver = [avPlayer addPeriodicTimeObserverForInterval:CMTimeMake(1, 1
                     <h2>The Observable</h2>
                     <p>An asynchronous value stream</p>
                     <img src="images/observable.png" />
-                    <aside class="notes">At the heart of Rx is the observable. An observable defines a stream of values, which will arrive asynchronously over time. 
-                        Observables are pure, computation of an observable does not have side effects.
+                    <aside class="notes">At the heart of Rx is the observable. An observable defines a stream of values, which will arrive asynchronously over time. It appears similar to an iterator, however rather than pulling values from it, it pushes them.  Observables are pure, computation of an observable does not have side effects.
                     </aside>
                 </section>
                 <section>
@@ -144,40 +145,8 @@ button.rx.tap //This is an observable
                     </code></pre> 
                 </section>
                 <section>
-                    <h2>Disposal</h2>
-                    <p>Manage the lifetime of your subscriptions</p>
-                    <aside class="notes">Now when you define a subscription, you have created a description of what to do when something happens. But for how long? Well, until it is disposed. When you create a subscription, you are provided with a disposable object. This object is essentially a handle on your subscription. Once you call dispose on this handle, your subscription is over, and all observables created by your subscription are disposed,  Observables can define code to execute when they are disposed, which is useful when they are long running eg. cancelling network requests. 
-                        RxSwift provides something called a disposeBag, which manages a collection of subscriptions. Once its refcount reaches zero and it is deinited, it will dispose every subscription it is storing.</aside>
-                    <pre><code class="hljs swift">
-let disposables = DisposeBag()
-
-//Subscription will exist until tapDisposable.dispose()
-let tapDisposable = button.rx.tap 
-    .subscribe(onNext: { present(viewController: myAlert) })
-
-
-tapDisposables.disposed(by: disposables) //disposables will call tapDisposable.dispose() on deinit
-                    </code></pre> 
-                </section>
-                <section>
-                    <h2>Using the DisposeBag</h2>
-                    <aside class="notes">The great thing about observable disposal is that it chains. When a subscription is disposed, all observables that have been created within its chain are disposed. When used in conjuction with the DisposeBag, this means that we don't have to worry about screens leaking resources once they are gone.</aside>
-                    <pre><code class="hljs swift">
-class ViewController: UIViewController {
-    let disposables = DisposeBag()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        let tapDisposable = button.rx.tap 
-            .subscribe(onNext: { present(viewController: myAlert) })
-            .disposed(by: disposables)
-    }
-                    </code></pre>
-                </section>
-                <section>
                     <h2>Observable operators</h2>
                     <img src="images/map.png" />
-                    <pre><code class="hljs swift">let newObservable = numberSource.map { $0 * 10 }</code></pre>
                     <aside class="notes">The observer pattern itself is nothing new. However Rx means Reactive extensions, and its at the x where things get interesting. Each Rx implementation ships with a variety of functional operators which can be applied to observables. These operators allow you to transform observables and combine them with each other in various ways, providing the building blocks for a functional and declarative codebase.</aside>
                 </section>
                 <section>
@@ -187,14 +156,7 @@ class ViewController: UIViewController {
                 </section>
                 <section>
                     <h2>Done!</h2>
-                    <pre><code class="hljs swift">
-class ViewController: UIViewController {
-    let disposables = DisposeBag()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        loginButton.rx.tap
+                    <pre><code class="hljs swift"> loginButton.rx.tap
             .withLatestFrom(
                 Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
             )
@@ -205,16 +167,8 @@ class ViewController: UIViewController {
     }
 </code></pre>
                 </section>
-
                 <section>
-                    <h2>Done!</h2>
                     <pre class="manualcode">
-class ViewController: UIViewController {
-    let disposables = DisposeBag()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
         loginButton.rx.tap
             .withLatestFrom(
                 <span class="highlight">Observable.combineLatest(nameField.rx.text, passwordField.rx.text)</span>
@@ -223,38 +177,30 @@ class ViewController: UIViewController {
             .map { $0.isSuccess ? "Success!" : "Failure" }
             .bindTo(resultField.rx.text)
             .disposed(by: disposables)
-    }
 </pre>
                 </section>
                 <section>
-                    <h2>Done!</h2>
+                    <h2>combineLatest</h2>
+                    <img src="images/combineLatest.png" />
+                </section>
+                <section>
                     <pre class="manualcode">
-class ViewController: UIViewController {
-    let disposables = DisposeBag()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        <span class="highlight">loginButton.rx.tap
-            .withLatestFrom(
-                </span>Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
+        loginButton.rx.tap
+            <span class="highlight">.withLatestFrom(</span>
+                Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
             <span class="highlight">)</span>
             .flatMapLatest { userAPI.login(user: $0, password: $1) }
             .map { $0.isSuccess ? "Success!" : "Failure" }
             .bindTo(resultField.rx.text)
             .disposed(by: disposables)
-    }
 </pre>
                 </section>
                 <section>
-                    <h2>Done!</h2>
+                    <h2>withLatestFrom</h2>
+                    <img src="images/withLatestFrom.png" />
+                </section>
+                <section>
                     <pre class="manualcode">
-class ViewController: UIViewController {
-    let disposables = DisposeBag()
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
         loginButton.rx.tap
             .withLatestFrom(
                 Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
@@ -263,9 +209,139 @@ class ViewController: UIViewController {
             .map { $0.isSuccess ? "Success!" : "Failure" }
             .bindTo(resultField.rx.text)
             .disposed(by: disposables)
-    }
 </pre>
                 </section>
+                <section>
+                    <h2>flatMap/Latest</h2>
+                    <img style="background: white;" src="images/flatMap.png" />
+                </section>
+                <section>
+                    <h2>A functional reactive video player</h2>
+                    <img src="images/videoplayer.png" style="height: 70%; width: auto;" />
+                    <aside class="notes">Ok now lets move on to a more advanced example... like a workout video player. 
+                    So the video player in this app, it has more than a few things going on. At the bottom of the pile you have the workout videos,
+                    which is essentially the iOS AVPlayer widget being fed a playlist of streams to play.
+                    Then either below it or overlayed, depending on screen orientation, we have the hud, showing what exercise you're on, what rep within that exercise, and what's coming up next, among other things.
+                    And in between exercises we display intro segments, displaying info about the upcoming exercise, while actually pausing the video player underneath.
+                    </aside>
+                </section>
+                <section>
+                    <aside class="notes">Ok so there's a lot going on at this screen at once. We want to build a screen which displays information derived from the current state of the video player.  This calls for a reactive UI. The iOS video player exposes a variety of notifications to make it possible to build one around it. Unfortunately iOS doesn't help us here in that it uses three different mechanisms to notify the developer of changes to the video player's state. This is a place where rx shines, as we can encapsulate each of the notification mechanisms in observables, providing us with both a consistent api, and a library of functional operators with which to build our reactive ui.</aside>
+                    <div class="uncenter">
+                        <h4>Key-value observable</h4>
+                        <ul>
+                            <li>currentItem</li>
+                            <li>isMuted</li>
+                            <li>volume</li>
+                            <li>status</li>
+                        </ul>
+                        <h4>Registered callbacks</h4>
+                        <ul>
+                            <li>Reached time</li>
+                            <li>Periodic time</li>
+                        </ul>
+                        <h4>Broadcast notifications</h4>
+                        <ul>
+                            <li>Reached end of item</li> 
+                            <li>Failed to play</li>
+                            <li>Player skipped time</li>
+                        </ul>
+                    </div>
+                </section>
+                <section>
+                    <h2>KVO -> Observable</h2>
+                    <pre><code class="hljs swift">
+extension Reactive where Base: AVPlayer {
+    public var currentItem: Observable&lt;AVPlayerItem&gt;{
+        return observe(AVPlayerItem.self, "currentItem")
+    }
+}
+                    </code></pre>
+                </section>
+                <section>
+                    <h2>NSNotification -> Observable</h2>
+                    <pre><code class="hljs swift">
+extension Reactive where Base: AVPlayer {
+    public var itemEnd: Observable&lt;NSNotification&gt; {
+        return Observable.merge(
+            notificationCenter.rx.notification(NSNotification.Name.AVPlayerItemDidPlayToEndTime),
+            notificationCenter.rx.notification(NSNotification.Name.AVPlayerItemFailedToPlayToEndTime)
+        )
+    }
+}
+                    </code></pre>
+                </section>
+                <section>
+                    <h2>Callback -> Observable</h2>
+                    <pre><code class="hljs swift">
+extension Reactive where Base: AVPlayer {
+    public func seekTime(scale: CMTime) -> Observable&lt;Double&gt; {
+        return Observable.create { observer in
+            let timeObserver = player.addPeriodicTimeObserver(forInterval: scale, queue: nil) {
+                observer.on(.next($0.seconds))
+            }
+            return Disposables.create {
+                player.removeTimeObserver(timeObserver)
+            }
+        }
+    }
+}
+                    </code></pre>
+                </section>
+                <section>
+                    <h2>Now everything is simple</h2>
+                <img src="images/everythingobservable.jpg" />
+                </section>
+                <section>
+                    <aside class="notes">So this is how we would expose the name of the currently playing exercise.</aside>
+                    <pre><code class="hljs swift">
+class WorkoutPlayer {
+    public lazy var currentExerciseName: Observable&lt;String&gt; = 
+        Observable.combineLatest(self.workout, self.currentItem) { workout, currentItem in
+            workout.exercises[currentItem.position].name
+         }
+}
+            </code></pre>
+                </section>
+                <section>
+                    <h2>The old fashioned way</h2>
+                    <aside class="notes">As a comparison, here is the equivalent functionality implemented using plain old key value observing, as well as a delegate to notify the new exercise name. You can see that on top of outright being more code, we have to keep track of our two changing properties in variables. We all know that as the size and scale of the class increases, the number of variables that we need to track will increase inordinately with the data we want to derive.</aside> 
+                    <pre><code class="hljs swift" style="font-size: 16px; line-height: 20px;">
+protocol WorkoutPlayerDelegate {
+    func exerciseNameChanged(name: String)
+}
+
+class WorkoutPlayer {
+    var workout: Workout {
+        didSet {
+            updateCurrentExercise()
+        }
+    }
+    var currentItem: WorkoutPlayerItem?
+    
+    func setupObserving() {
+        let player = AVPlayer()
+        addObserver(self, forKeyPath: #keyPath(player.currentItem), options: [.old, .new], context: nil)
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == #keyPath(player.currentItem) {
+           currentItem = player.currentItem
+           updateCurrentExercise()
+        }
+    }
+    
+    func updateCurrentExercise() {
+        let exercise = workout.exercises[currentItem.position]
+        delegate.exerciseNameChanged(name: exercise.name)
+    }
+    
+    func unsetupObserving() {
+        removeObserver(self, forKeyPath: #keyPath(player.currentItem))
+    }
+}
+
+                    </code</pre>
             </div>
         </div>
         <script src="lib/js/head.min.js"></script>
