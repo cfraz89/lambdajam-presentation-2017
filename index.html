@@ -26,6 +26,12 @@
     .uncenter {
         text-align: left;
     }
+    .reveal section img.coolPeopleClub {
+        width: auto;
+        height: 35%;
+        display: inline-block;
+        margin: 0 1%;
+    }
 </style>
     </head>
     <body>
@@ -57,7 +63,7 @@
                     <img src="images/state_everywhere.jpg" />
                 </section>
                 <section>
-                    <pre><code class="hljs objectivec" data-trim>
+                    <pre><code data-trim class="hljs objectivec" data-trim>
 @property NSMutableArray *sections;
 
 - (instancetype)init
@@ -139,7 +145,7 @@ self.timeObserver = [avPlayer addPeriodicTimeObserverForInterval:CMTimeMake(1, 1
                         Subscribing to an observable is the process of attaching an observer, so that it recieves a notification of each new value emitted by the observable.
                         This is where your side effects will live.
                     </aside>
-                    <pre><code class="hljs swift">
+                    <pre><code data-trim class="hljs swift">
 button.rx.tap //This is an observable
     .subscribe(onNext: { present(viewController: myAlert) }) //this is a side effect 
                     </code></pre> 
@@ -156,7 +162,7 @@ button.rx.tap //This is an observable
                 </section>
                 <section>
                     <h2>Done!</h2>
-                    <pre><code class="hljs swift"> loginButton.rx.tap
+                    <pre><code data-trim class="hljs swift"> loginButton.rx.tap
             .withLatestFrom(
                 Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
             )
@@ -250,7 +256,8 @@ button.rx.tap //This is an observable
                 </section>
                 <section>
                     <h2>KVO -> Observable</h2>
-                    <pre><code class="hljs swift">
+                    <aside class="notes">RxSwift includes a number of ways to create observables. In this instance we're using the builtin observe method to wrap a kvo property. Note that its being implemented as an extension of the Reactive<AVPlayer> class itself using swift's protocol extensions constraints, meaning it can now be used as a property as if it was built into the framework itself</aside>
+                    <pre><code data-trim class="hljs swift">
 extension Reactive where Base: AVPlayer {
     public var currentItem: Observable&lt;AVPlayerItem&gt;{
         return observe(AVPlayerItem.self, "currentItem")
@@ -260,7 +267,7 @@ extension Reactive where Base: AVPlayer {
                 </section>
                 <section>
                     <h2>NSNotification -> Observable</h2>
-                    <pre><code class="hljs swift">
+                    <pre><code data-trim class="hljs swift">
 extension Reactive where Base: AVPlayer {
     public var itemEnd: Observable&lt;NSNotification&gt; {
         return Observable.merge(
@@ -273,7 +280,7 @@ extension Reactive where Base: AVPlayer {
                 </section>
                 <section>
                     <h2>Callback -> Observable</h2>
-                    <pre><code class="hljs swift">
+                    <pre><code data-trim class="hljs swift">
 extension Reactive where Base: AVPlayer {
     public func seekTime(scale: CMTime) -> Observable&lt;Double&gt; {
         return Observable.create { observer in
@@ -294,7 +301,7 @@ extension Reactive where Base: AVPlayer {
                 </section>
                 <section>
                     <aside class="notes">So this is how we would expose the name of the currently playing exercise.</aside>
-                    <pre><code class="hljs swift">
+                    <pre><code data-trim class="hljs swift">
 class WorkoutPlayer {
     public lazy var currentExerciseName: Observable&lt;String&gt; = 
         Observable.combineLatest(self.workout, self.currentItem) { workout, currentItem in
@@ -306,7 +313,7 @@ class WorkoutPlayer {
                 <section>
                     <h2>The old fashioned way</h2>
                     <aside class="notes">As a comparison, here is the equivalent functionality implemented using plain old key value observing, as well as a delegate to notify the new exercise name. You can see that on top of outright being more code, we have to keep track of our two changing properties in variables. We all know that as the size and scale of the class increases, the number of variables that we need to track will increase inordinately with the data we want to derive.</aside> 
-                    <pre><code class="hljs swift" style="font-size: 16px; line-height: 20px;">
+                    <pre><code data-trim class="hljs swift" style="font-size: 16px; line-height: 20px;">
 protocol WorkoutPlayerDelegate {
     func exerciseNameChanged(name: String)
 }
@@ -340,8 +347,97 @@ class WorkoutPlayer {
         removeObserver(self, forKeyPath: #keyPath(player.currentItem))
     }
 }
+                    </code></pre>
+                </section>
+                <section>
+                    <h2>Score calculation</h2>
+                    <aside class="notes">Another area of the app where usage of rx comes into its own is in our calculation of the user's activity score. The score is a number providing an insight into how active someone currently is as a whole. It calculates this by aggregating the user's activity from a variety of sources, and for each activity weighting it by its age, finally reducing the data together. What makes this interesting is that this data needs to be extracted from a multitude of sources asynchronously so as not to block the ui, with each source taking an undetermined amount of time to return. On top of that, the score is dependent on time, so we would like it to update as time passes. Just to add some more complication</aside>
+                    <img src="images/score.png" style="height: 70%; width: auto; display: inline-block; vertical-align: middle;" />
+                    <ul style="vertical-align: middle">
+                        <li class="highlight">Healthkit (db)</li>
+                        <ul>
+                            <li>Workouts</li>
+                            <li>Pedometer activity times</li>
+                            <ul>
+                                <li class="highlight">Motion coprocessor</li>
+                                <ul>
+                                    <li>Pedometer activity quality</li>
+                                </ul>
+                            </ul>
+                        </ul>
+                        <li class="highlight">Sqlite db</li>
+                            <ul>
+                                <li>Historic pedometer activity</li>
+                            </ul>
+                        <li class="highlight">Timeline API (until recently)</li>
+                        <ul><li>Workouts</li></ul>
+                    </ul>
+                </section>
+                <section>
+                    <aside class="notes">And essentially, this is all it takes. Again we're using combineLatest to aggregate a variety of streams. We can then map this out of a timer which reflects the dates of 7 days ago to today, to ensure that our scoring range is always accurate to the minute. Again, we've achieved this without storing any state.</aside>
+                    <pre><code data-trim class="hljs swift">
+protocol ActivitySource {
+    func activities(from: Date, to: Date) -&gt; Observable&lt;[ScorableActivity]&gt;
+}
+...
 
-                    </code</pre>
+class Scorer {
+    //  [healthkitWorkoutSource, pedometerSource, databaseSource, timelineSource]
+    let sources: [ActivitySource] 
+
+    var score: Observable&lt;Double&gt; {
+        let weekToNow: Observable&lt;(Date, Date)&gt; =
+            Observable&lt;Int&gt;.timer(0, period: 60, scheduler: MainScheduler.instance)
+                .map { _ in Date().addingTimeInterval(-60 * 60 * 24 * 7) }
+
+        let activities: Observable&lt;[ScorableActivity]&gt; = 
+            weekToNow.flatMapLatest { from, to in 
+                let activities: [Observable&lt;[ScorableActivity]&gt;]
+                    = sources.map { $0.activities(from: from, to: to) }
+                return Observable.combineLatest(activities) { $0.reduce([]) { $0 + $1 } } 
+            }
+
+        return activities.map { self.score(activities: $0) }
+    }
+}
+                    </code></pre>
+                </section>
+                <section>
+                    <h2>Modelling a screen in all its states</h2>
+                    <aside class="notes">Now it all comes to a crux with our ability to represent an entire screen as not just through a set of observables, but as a single observable. This is made possible with the usage of Swift's enums, which are sum types. This is a pattern we've been adopting lately for more complex screens. Lets take the homescreen again as an example. Let's go back to our hypothetical login screen for the lambdajam cool people club. Our user attempts to log in, upon which the app communicate with the backend and determine access. This doesn't happen instantly, so we want to reflect our loading state to the user. On top of that, maybe they're not cool enough to log in. Now lets go ahead and model this in a single, easy to follow observable</aside>
+                    <img src="images/loading.png" class="coolPeopleClub" />
+                    <img src="images/welcome.png" class="coolPeopleClub" />
+                    <img src="images/notcool.png" class="coolPeopleClub" />
+                </section>
+                <section>
+                    <pre><code data-trim class="hljs swift">
+enum State {
+    case loading, failed(message: String), welcome(name: String, friendRequests: Int)
+}
+
+//Just a recipe, no api requests are made until necessary
+var welcomeState: Observable&lt;State&gt; {
+   return Observable.zip(
+        userAPI.getUserDetails(token),
+        friendsAPI.getFriendRequests(token)
+    ) { user, friendRequests in
+        State.welcome(name: user.name, friendRequests: friendRequests.count)
+    }
+}
+
+var state: Observable&lt;State&gt; {
+    return loginRequest //from our previous example
+        .flatMapLatest { result -&gt; Observable&lt;State&gt; in
+            switch result {
+            case .success(let token):
+                return self.welcomeState
+            case .failure(let error):
+                return Observable.just(State.failed(message: error.message))
+            }
+        }
+        .startWith(State.loading)
+}
+                    </code></pre>
             </div>
         </div>
         <script src="lib/js/head.min.js"></script>
