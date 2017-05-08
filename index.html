@@ -1,7 +1,7 @@
 <html>
     <head>
         <link rel="stylesheet" href="css/reveal.css">
-        <link rel="stylesheet" href="css/theme/black.css" id="theme">
+        <link rel="stylesheet" href="css/theme/night.css" id="theme">
         <link rel="stylesheet" href="lib/css/zenburn.css">
 <style>
     .reveal pre code {
@@ -32,6 +32,27 @@
         display: inline-block;
         margin: 0 1%;
     }
+    .reveal section img.product-image {
+        background: none;
+        border: none;
+        box-shadow: none;
+       height: auto;
+       display: inline-block;
+           vertical-align: middle;
+    }
+    .reveal div.product-images {
+        vertical-align: middle;
+    }
+    .zova-blue {
+        color: #4788FF !important;
+    }
+    .reveal .light * {
+        color: #333;
+    }
+    .reveal .light img {
+        border: none;
+        box-shadow: none;
+    }
 </style>
     </head>
     <body>
@@ -39,56 +60,85 @@
             <div class="slides">
                 <section>
                     <h1>Observing Everything</h1>
-                    <h2>Completely Reactive Apps in the Real World with RxSwift</h2>
+                    <h2 class="zova-blue">Completely Reactive Apps in the Real World with RxSwift</h2>
+                    <aside class="notes">Hi guys, my name's Chris. I'm the iOS developer at Zova. I'm here to introduce you to RxSwift, and show you how it helped us build an app built in an entirely reactive and functional manner. 
                 </section>
-                <section>
-                    <h3>Zova - a fitness app</h3>
+                <section data-background-color="white">
+                    <h3 style="color: #4788FB">Zova</h3>
+                    <div class="product-images">
+                        <img class="product-image" style="width: 20%; margin-right: 5%;" src="images/zova-iphone-framed.png" />
+                        <img class="product-image" style="width: 10%;" src="images/watch-framed.png" />
+                        <img class="product-image" style="width: 50%" src="images/tv-framed.png" />
+                    </div>
                     <aside class="notes">
-                        <p>What does this entail:</p>
+                        So a quick intro to Zova. Its a fitness application for iOS, watchOS, and tvOS.
+                        Our latest claim to fame is that we scored an Apple Design Award at WWDC last year for our tv application.
+                        That application was about 50% rxswift-based at the time, which I guess proves that functional programming and sexy apps can be a thing.
+                        <p>So what does it mean to have a bunch of fitness apps?</p>
                         <ul>
-                            <li>At first: a video player for workouts</li>
-                            <li>Then, a companion watch application</li>
-                            <li>Then, a faux-pt</li>
-                            <li>Then, a scoring mechanism</lib>
+                            <li>Well the oldest and most fundamental feature of the apps (except for the watch): a video player for workouts</li>
+                            <li>Then, a companion watch application. There is a lot of message passing and state transfer involved in making the watch app function, and it isn't necessarily timely or reliable. The watch app itself talks to both the phone and the tv apps simultaneously sometimes.</li>
+                            <li>A recent addition has been a scoring mechanism, which eats data from a few sources on the phone continously, providing an aggregated number</lib>
                         </ul>
+                        I'm proud to say now that all three apps are 100% built around RxSwift. Why do I think this is a good thing? Lets go back a year
                     </aside>
                     
                 </section>
                 <section>
                     <h3>Initially objective-c</h3>
-                    <p>Standard iOS app - standard object orientated design</p>
-                    <aside class="notes">There was nothing wrong with the application, it folloed the typical mvc pattern laid out by apple. However this typically results in:</aside>
+                    <h2 class="zova-blue">Standard iOS app</h2>
+                    <h3> standard object orientated design</h3>
+                    <pre><code class="hljs objectivec"> [[[[[[[[[[self delegate] notifyPropertyDidChangeAboutTwoMinutesAgoFrom: a to: b]]]]]]]];</code></pre>
+                    <aside class="notes">So before Rxification, there was nothing wrong with the app. It folloed the typical massive view controller implementing all the delegates pattern laid out by apple. However besides a lot of brackets and overly long method invocations, this typically results in:</aside>
                 </section>
                 <section>
-                    <img src="images/state_everywhere.jpg" />
+                    <img src="images/state_everywhere.jpg" style="width: 50%; height: auto;" />
+                    <aside class="notes">The root of all evil</aside>
                 </section>
                 <section>
+                    <aside class="notes">Here's some code I pulled from the homescreen of the old application. It mantains an array of homescreen items, and uses various callback methods to adds and remove from the array as the homescreen items load.
+                        You guys are probably all familiar with the trappings of this approach. The compiler can't verify when sections is a valid dataset. What happens if the callbacks happen in an unexpected order? Now the array has been mutated in a way that wasn't accounted for.
+                    </aside>
                     <pre><code data-trim class="hljs objectivec" data-trim>
 @property NSMutableArray *sections;
-
-- (instancetype)init
+...
+- (void)handleWODLoaded:(Workout *)WOD;
 {
-    self = [super init];
-    _sections = [NSMutableArray new];
-    
-    for(int i = 0; i < 7; i++)
+    if(nil == WOD)
     {
-      ZVCollectionViewNullSection *nullSection = [ZVCollectionViewNullSection new];
-      [_sections addObject:nullSection];
+        return;
+    }
+    [WODManager shared].workout = WOD;
+    ZVWODCellViewModel *wodCellViewModel = [[ZVWODCellViewModel alloc] initWithWorkout:WOD homeDatasource:self];
+    ZVCollectionViewSection *wodSection = [[ZVCollectionViewSection alloc] initWithModels:@[WOD] viewModels:@[wodCellViewModel] sectionHeaderViewModel:nil];
+    [self.sections insertObject:wodSection atIndex:kHomeDatasourceWODSectionIndex];
+    [self.sections removeObjectAtIndex:kHomeDatasourceWODSectionIndex+1];
+}
+                                         
+- (void)handleFeaturedCollectionsLoaded:(NSArray *)featuredCollections;
+{
+    if(nil == featuredCollections || [featuredCollections count] == 0)
+    {
+        [self.sections insertObject:[ZVCollectionViewNullSection new] atIndex:kHomeDatasourceFeaturedCollectionSectionIndex];
+        [self.sections removeObjectAtIndex:kHomeDatasourceFeaturedCollectionSectionIndex+1];
+        return;
     }
 }
                     </code></pre>
                 </section>
                 <section>
-                    <h2>Standard iOS message passing and asynchrony solution:</h2>
+                    <h2>Standard iOS message passing and notification solution:</h2>
+                    <aside class="notes">Ok so on one hand we had code swimming in mutable state. On the other hand, we had to deal with the standard iOS approach to messaging and object notification, which is...</aside> 
                 </section>
                 <section>
                     <h2>There is none</h2>
                 </section>
                 <section>
+                    <aside class="notes">NSNotificationCenter - for multicasts. Btw they're untyped. Delegates - strongly typed, unicast, require implementing an interface. </aside>
                     <h2>NSNotificationCenter</h2>
                     <h2>Delegates</h2>
                     <h2>Callback closures</h2>
+                    <h2>KVO</h2>
                 </section>
                 <section>
                     <pre><code class="hljs objectivec" data-trim>
@@ -106,22 +156,27 @@ self.timeObserver = [avPlayer addPeriodicTimeObserverForInterval:CMTimeMake(1, 1
             didPlayFrame:weakSelf.track time:timeInSeconds lastTime:0];
     }];
                     </code></pre>
-                       <aside class="notes">Here's an example from the code I found using all three mechanisms at once. Pretty full on.
-                           So with the rewrite to swift, came a good opportunity to make the app more functional. Now functional programming and mobile application development tend not to be two things you associate with each other. And for good reason, between the network requests, user input, animations, its pretty hard to keep your app adhering to functional paradigms outside of little snippets of maps and filters. So how can we reap the benefits of a more functional architecture?</aside>
+                       <aside class="notes">Here's an example from the code I found using three mechanisms at once. Pretty full on.
+                           So with the rewrite to swift, came a good opportunity to do something about these issues. Now functional programming and mobile applications tend not to be two things you associate with each other. Maybe Scala on Android? There's a good reason though, as you multiplex your network requests, user input, ui updates, and animations its pretty hard to keep your app  functional outside of little snippets of maps and filters. So how can we reap the benefits of a more functional architecture?</aside>
                 </section>
+                <section data-background-color="white">
+                    <img src="images/haskell-logo.svg" style="box-shadow: none; border: none" />
+                    <h3 style="background: black;">iOS</h3>
+                </section>
+                <section data-background-color="white"><h2 style="color: black;">Sorry</h2></section>
                 <section>
                        <h1>ReactiveX</h1>
                        <img src="images/Rx_Logo_M.png" style="border: none; background: none;"/>
-                       <aside class="notes">ReactiveX, or rx for short, is a library started by microsoft, initially for .net, now implemented for many (18 on the website at this time), including swift
+                       <aside class="notes">ReactiveX, or rx for short, is a library started by microsoft, initially for .net, now implemented for many (18 on the website at this time), including swift.
                 </section>
                 <section>
-                    <h1>An API for asynchronous programming with observable streams</h1>
-                    <aside class="notes">Straight from the horses mouth. The Rx API combines the observer pattern with functional operators to allow what is known as Functional Reactive Programming.
+                    <h2>An API for <br/><span class="zova-blue">asynchronous programming</span><br/>with<br/><span class="zova-blue">observable streams</span></h2>
+                    <aside class="notes">Straight from the horses mouth. The Rx API combines the observer pattern with functional operators to allow a programming style similar to Functional Reactive Programming.
                 </section>
-                <section>
+                <section class="light" data-background-color="white">
                     <h2>The Observable</h2>
                     <p>An asynchronous value stream</p>
-                    <img src="images/observable.png" />
+                    <img src="images/observable.png" style="box-shadow: none; border: none"/>
                     <aside class="notes">At the heart of Rx is the observable. An observable defines a stream of values, which will arrive asynchronously over time. It appears similar to an iterator, however rather than pulling values from it, it pushes them.  Observables are pure, computation of an observable does not have side effects.
                     </aside>
                 </section>
@@ -157,7 +212,7 @@ button.rx.tap //This is an observable
                 </section>
                 <section>
                     <h2>In practice</h2>
-                    <aside class="notes">So now lets see how this works in practice. Lets say we were to build a login screen. A pretty standard affair, it gathers the user's username and password, ships them off to a backend API, and displays the result.</aside>
+                    <aside class="notes">So now lets see how this works in practice. Lets say we were to build a login screen. We want to join the cool people club at LambdaJam, I hear its pretty packed. The screen itself is a pretty standard affair, it gathers the user's username and password, ships them off to a backend API, and displays the result.</aside>
                     <img src="images/coolpeopleclub.png" />
                 </section>
                 <section>
@@ -185,7 +240,7 @@ button.rx.tap //This is an observable
             .disposed(by: disposables)
 </pre>
                 </section>
-                <section>
+                <section class="light" data-background-color="white">
                     <h2>combineLatest</h2>
                     <img src="images/combineLatest.png" />
                 </section>
@@ -201,7 +256,7 @@ button.rx.tap //This is an observable
             .disposed(by: disposables)
 </pre>
                 </section>
-                <section>
+                <section class="light" data-background-color="white">
                     <h2>withLatestFrom</h2>
                     <img src="images/withLatestFrom.png" />
                 </section>
@@ -217,7 +272,7 @@ button.rx.tap //This is an observable
             .disposed(by: disposables)
 </pre>
                 </section>
-                <section>
+                <section class="light" data-background-color="white">
                     <h2>flatMap/Latest</h2>
                     <img style="background: white;" src="images/flatMap.png" />
                 </section>
@@ -296,11 +351,10 @@ extension Reactive where Base: AVPlayer {
                     </code></pre>
                 </section>
                 <section>
-                    <h2>Now everything is simple</h2>
                 <img src="images/everythingobservable.jpg" />
                 </section>
                 <section>
-                    <aside class="notes">So this is how we would expose the name of the currently playing exercise.</aside>
+                    <aside class="notes">So now that we have properties such as the players current item as an observable, here's how we would expose the name of the currently playing exercise.</aside>
                     <pre><code data-trim class="hljs swift">
 class WorkoutPlayer {
     public lazy var currentExerciseName: Observable&lt;String&gt; = 
@@ -412,7 +466,7 @@ class Scorer {
                 <section>
                     <pre><code data-trim class="hljs swift">
 enum State {
-    case loading, failed(message: String), welcome(name: String, friendRequests: Int)
+    case loading, failed(message: String), welcome(name: String, friendRequests: String)
 }
 
 //Just a recipe, no api requests are made until necessary
@@ -421,7 +475,7 @@ var welcomeState: Observable&lt;State&gt; {
         userAPI.getUserDetails(token),
         friendsAPI.getFriendRequests(token)
     ) { user, friendRequests in
-        State.welcome(name: user.name, friendRequests: friendRequests.count)
+        State.welcome(name: user.name, friendRequests: "You have \(friendRequests.count) friend requests")
     }
 }
 
@@ -438,6 +492,39 @@ var state: Observable&lt;State&gt; {
         .startWith(State.loading)
 }
                     </code></pre>
+                </section>
+                <section>
+                    <aside class="notes">And on the frontend, we can simply unpack the state, taking a fix-everything approach to updating the UI. This is the point we can put all our fancy animation code, or even use more operators to derive further UI-specific properties.</aside>
+                    <pre><code data-trim class="hljs swift">
+state
+    .subscribe(onNext: { [unowned self] in
+        UIView.animate(withDuration: 0.2) { //yep we can do animations
+            switch state {
+                case .loading: 
+                    self.loadingView.alpha = 1
+                    self.mainView.alpha = 0
+                    self.failedView.alpha = 0
+                case let .welcome(name, friendRequestCount):
+                    self.loadingView.alpha = 0
+                    self.mainView.alpha = 1
+                    self.failedView.alpha = 0
+                    self.nameLabel.text = name
+                    self.friendRequestLabel.text = friendRequestCount
+                case .failed:
+                    self.loadingView.alpha = 0
+                    self.mainView.alpha = 0
+                    self.failedView.alpha = 1
+            }
+        }
+        })
+                    </code></pre> 
+                </section> 
+                <section class="light" data-background-color="white">
+                    <aside class="notes">So now hopefully you guys are starting to get an idea that, with a toolkit like RxSwift, you can implement an entire application in a functional manner, mantaining minimal state in the code, and making life better for everyone</aside>
+                    <h2>UI has state</h2>
+                    <h2 class="zova-blue">The code shouldn't</h2>
+                </section>
+                <section><h2>Questions!</h2></section>
             </div>
         </div>
         <script src="lib/js/head.min.js"></script>
@@ -455,6 +542,7 @@ var state: Observable&lt;State&gt; {
                     // More info https://github.com/hakimel/reveal.js#dependencies
                     dependencies: [
                         { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+                        { src: 'plugin/remotes/remotes.js', async: true },
                         { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
                         { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
                         { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
