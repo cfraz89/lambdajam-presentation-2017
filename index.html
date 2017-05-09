@@ -217,6 +217,7 @@ button.rx.tap //This is an observable
                 </section>
                 <section>
                     <h2>Done!</h2>
+                    <aside class="notes">And this how we express it with RxSwift. Its a nice, self-contained block using a few of RxSwift's bundled operators to express the login response as a function of the name, password, and login button streams. Lets look at how it works by unpacking the operators involved.</aside>
                     <pre><code data-trim class="hljs swift"> loginButton.rx.tap
             .withLatestFrom(
                 Observable.combineLatest(nameField.rx.text, passwordField.rx.text)
@@ -229,6 +230,7 @@ button.rx.tap //This is an observable
 </code></pre>
                 </section>
                 <section>
+                    <aside class="notes">Starting from the two text fields, first we need an observable that represents a product of both. This is a job for the combineLatest operator.</aside>
                     <pre class="manualcode">
         loginButton.rx.tap
             .withLatestFrom(
@@ -241,10 +243,12 @@ button.rx.tap //This is an observable
 </pre>
                 </section>
                 <section class="light" data-background-color="white">
+                    <aside class="notes">This operator takes n number of observables as arguments, as well as a closure which will be the transform to apply to the latest values from each of these observables. Every time any observable emits a value, this new observable emits a value according to the transform</aside>
                     <h2>combineLatest</h2>
                     <img src="images/combineLatest.png" />
                 </section>
                 <section>
+                    <aside class="notes">Now we have a realtime value representing our user input, we want to capture it at the time at which the login button is pressed. Here we use withLatestFrom</aside>
                     <pre class="manualcode">
         loginButton.rx.tap
             <span class="highlight">.withLatestFrom(</span>
@@ -257,10 +261,12 @@ button.rx.tap //This is an observable
 </pre>
                 </section>
                 <section class="light" data-background-color="white">
+                    <aside class="notes">This operator is similar to combineLatest, however it only emits a new value when the first observable emits. The default transform simply returns the latest value from the second observable at this time. This makes it perfect for capturing values at specific points in time</aside> 
                     <h2>withLatestFrom</h2>
                     <img src="images/withLatestFrom.png" />
                 </section>
                 <section>
+                    <aside class="notes">Now we have our user input streaming out when the user presses the button. We want to ship it off to our API, inlining the result into our stream.</aside>
                     <pre class="manualcode">
         loginButton.rx.tap
             .withLatestFrom(
@@ -272,8 +278,13 @@ button.rx.tap //This is an observable
             .disposed(by: disposables)
 </pre>
                 </section>
+                <section>
+                    <img src="images/deeper.jpg" />
+                    <aside class="notes">So now we can have observables in our observables. 
+                </section>
                 <section class="light" data-background-color="white">
                     <h2>flatMap/Latest</h2>
+                    <aside class="notes">This is where the flatMap operator comes in. Like flatMap is to map on arrays, it feeds values from your input observable into a closure which itself returns an observable. It then flattens this back into the same level as your input stream.</aside>
                     <img style="background: white;" src="images/flatMap.png" />
                 </section>
                 <section>
@@ -357,10 +368,12 @@ extension Reactive where Base: AVPlayer {
                     <aside class="notes">So now that we have properties such as the players current item as an observable, here's how we would expose the name of the currently playing exercise.</aside>
                     <pre><code data-trim class="hljs swift">
 class WorkoutPlayer {
+...
     public lazy var currentExerciseName: Observable&lt;String&gt; = 
         Observable.combineLatest(self.workout, self.currentItem) { workout, currentItem in
             workout.exercises[currentItem.position].name
          }
+...
 }
             </code></pre>
                 </section>
@@ -402,6 +415,47 @@ class WorkoutPlayer {
     }
 }
                     </code></pre>
+                </section>
+                <section class="light" data-background-color="white">
+                    <aside class="notes">Now this is probably my favourite example. Every time we're showing an intro sequence in our playlist, we want to show a title a second in.</aside>
+                    <img src="images/workoutTitle.png" style="height: 100%; width: auto;" />
+                </section>
+                <section>
+                    <h3>The player</h3>
+                    <aside class="notes">So in our workoutPlayer, we define an observable which represents this timing. The nice thing about this is we can use flatMapLatest to create a scope, both structurally in the code, and temporally within the app. We use takeUntil to define the end of this scope. The end result literally says, when the currentItem is an intro, when we hit the one second mark, until the current item changes to something else.</aside>
+                    <pre><code data-trim class="hljs swift">
+class WorkoutPlayer {
+...
+    //Capture the timing
+    public lazy var oneSecondIntoIntro: Observable&lt;Void&gt; =
+        self.currentItem
+            .filter { $0.type == .intro }
+            .flatMapLatest { [unowned self] in
+                self.seekTime(scale: CMTime(1, 1)
+                    .takeUntil(self.currentItem)
+            }
+...
+}
+                    </code></pre>
+                </section>
+                <section>
+                        <aside class="notes">Up in the view, we simply subscribe to this observable, use withLatestFrom to capture the exerciseName, and subscribe to it for display.</aside>
+                        <h3>The view</h3>
+                    <pre><code data-trim class="hljs swift">
+class WorkoutPlayerUI {
+...
+    func bind() {
+        oneSecondIntoIntro
+            .withLatestFrom(currentExerciseName)
+            .subscribe(onNext: { [unowned self] exerciseName in
+                self.introTitleLabel.hidden = false
+                self.introTitleLabel.text = exerciseName
+            })
+            .disposed(by: disposables)
+    }
+    ...
+}
+                    </code></pre> 
                 </section>
                 <section>
                     <h2>Score calculation</h2>
